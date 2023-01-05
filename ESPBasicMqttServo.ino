@@ -1,31 +1,34 @@
 #ifdef ESP8266
-#include <ESP8266WiFi.h>	// ESP8266 WiFi support.  https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266WiFi
+#include <ESP8266WiFi.h>// ESP8266 WiFi support.  https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266WiFi
 #else
-#include <WiFi.h>		// Arduino Wi-Fi support.  This header is part of the standard library.  https://www.arduino.cc/en/Reference/WiFi
+#include <WiFi.h>// Arduino Wi-Fi support.  This header is part of the standard library.  https://www.arduino.cc/en/Reference/WiFi
 #endif
 
-#include <PubSubClient.h>
 #include "privateInfo.h"
+#include <PubSubClient.h>
 
 #define LED 2
+#define SERVO_GPIO 14
 
+#include <Servo.h>
 
+Servo ESC;
 
-char ipAddress[16];										// A character array to hold the IP address.
-char macAddress[18];										// A character array to hold the MAC address, and append a dash and 3 numbers.
-long rssi;													// A global to hold the Received Signal Strength Indicator.
-unsigned int printInterval = 10000;					// How long to wait between stat printouts.
-unsigned long printCount = 0;							// A counter of how many times the stats have been published.
-unsigned long lastPrintTime = 0;						// The last time a MQTT publish was performed.
-unsigned long lastBrokerConnect = 0;				// The last time a MQTT broker connection was attempted.
-unsigned long brokerCoolDown = 7000;				// How long to wait between MQTT broker connection attempts.
-unsigned long wifiConnectionTimeout = 15000;		// The amount of time to wait for a Wi-Fi connection.
-const unsigned int MCU_LED = 2;						// The GPIO which the onboard LED is connected to.
-const char *hostname = "GenericESP";				// The hostname.  Defined in privateInfo.h
+char ipAddress[ 16 ];                       // A character array to hold the IP address.
+char macAddress[ 18 ];                      // A character array to hold the MAC address, and append a dash and 3 numbers.
+long rssi;                                  // A global to hold the Received Signal Strength Indicator.
+unsigned int printInterval = 10000;         // How long to wait between stat printouts.
+unsigned long printCount = 0;               // A counter of how many times the stats have been published.
+unsigned long lastPrintTime = 0;            // The last time a MQTT publish was performed.
+unsigned long lastBrokerConnect = 0;        // The last time a MQTT broker connection was attempted.
+unsigned long brokerCoolDown = 7000;        // How long to wait between MQTT broker connection attempts.
+unsigned long wifiConnectionTimeout = 15000;// The amount of time to wait for a Wi-Fi connection.
+const unsigned int MCU_LED = 2;             // The GPIO which the onboard LED is connected to.
+const char *hostname = "ESPServoMQTT";      // The hostname.  Defined in privateInfo.h
 //const char *wifiSsid = "nunya";					// Wi-Fi SSID.  Defined in privateInfo.h
 //const char *wifiPassword = "nunya";				// Wi-Fi password.  Defined in privateInfo.h
 //const char *broker = "nunya";						// The broker address.  Defined in privateInfo.h
-uint16_t port = 2112;									// The broker port.
+uint16_t port = 2112;// The broker port.
 
 
 WiFiClient wifiClient;
@@ -35,7 +38,7 @@ PubSubClient mqttClient( wifiClient );
 /**
  * @brief lookupWifiCode() will return the string for an integer code.
  */
-void lookupWifiCode( int code, char * buffer)
+void lookupWifiCode( int code, char *buffer )
 {
 	switch( code )
 	{
@@ -63,50 +66,50 @@ void lookupWifiCode( int code, char * buffer)
 		default:
 			snprintf( buffer, 26, "%s", "Unknown Wi-Fi status code" );
 	}
-} // End of lookupWifiCode() function.
+}// End of lookupWifiCode() function.
 
 
 /**
  * @brief lookupMQTTCode() will return the string for an integer state code.
  */
-void lookupMQTTCode( int code, char * buffer)
+void lookupMQTTCode( int code, char *buffer )
 {
-    switch( code )
-    {
-        case -4:
-            snprintf( buffer, 29, "%s", "Connection timeout" );
-            break;
-        case -3:
-            snprintf( buffer, 29, "%s", "Connection lost" );
-            break;
-        case -2:
-            snprintf( buffer, 29, "%s", "Connect failed" );
-            break;
-        case -1:
-            snprintf( buffer, 29, "%s", "Disconnected" );
-            break;
-        case 0:
-            snprintf( buffer, 29, "%s", "Connected" );
-            break;
-        case 1:
-            snprintf( buffer, 29, "%s", "Bad protocol" );
-            break;
-        case 2:
-            snprintf( buffer, 29, "%s", "Bad client ID" );
-            break;
-        case 3:
-            snprintf( buffer, 29, "%s", "Unavailable" );
-            break;
-        case 4:
-            snprintf( buffer, 29, "%s", "Bad credentials" );
-            break;
-        case 5:
-            snprintf( buffer, 29, "%s", "Unauthorized" );
-            break;
-        default:
-            snprintf( buffer, 29, "%s", "Unknown MQTT state code" );
-    }
-} // End of lookupMQTTCode() function.
+	switch( code )
+	{
+		case -4:
+			snprintf( buffer, 29, "%s", "Connection timeout" );
+			break;
+		case -3:
+			snprintf( buffer, 29, "%s", "Connection lost" );
+			break;
+		case -2:
+			snprintf( buffer, 29, "%s", "Connect failed" );
+			break;
+		case -1:
+			snprintf( buffer, 29, "%s", "Disconnected" );
+			break;
+		case 0:
+			snprintf( buffer, 29, "%s", "Connected" );
+			break;
+		case 1:
+			snprintf( buffer, 29, "%s", "Bad protocol" );
+			break;
+		case 2:
+			snprintf( buffer, 29, "%s", "Bad client ID" );
+			break;
+		case 3:
+			snprintf( buffer, 29, "%s", "Unavailable" );
+			break;
+		case 4:
+			snprintf( buffer, 29, "%s", "Bad credentials" );
+			break;
+		case 5:
+			snprintf( buffer, 29, "%s", "Unauthorized" );
+			break;
+		default:
+			snprintf( buffer, 29, "%s", "Unknown MQTT state code" );
+	}
+}// End of lookupMQTTCode() function.
 
 
 /**
@@ -137,14 +140,14 @@ void wifiBasicConnect()
 	{
 		// Print that Wi-Fi has connected.
 		Serial.println( "\nWi-Fi connection established!" );
-		snprintf( ipAddress, 16, "%d.%d.%d.%d", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3] );
+		snprintf( ipAddress, 16, "%d.%d.%d.%d", WiFi.localIP()[ 0 ], WiFi.localIP()[ 1 ], WiFi.localIP()[ 2 ], WiFi.localIP()[ 3 ] );
 		// Turn the LED on to show that Wi-Fi is connected.
 		digitalWrite( MCU_LED, HIGH );
 		return;
 	}
 	else
 		Serial.println( "Wi-Fi failed to connect in the timeout period.\n" );
-} // End of wifiBasicConnect() function.
+}// End of wifiBasicConnect() function.
 
 
 /**
@@ -153,7 +156,7 @@ void wifiBasicConnect()
 void readTelemetry()
 {
 	rssi = WiFi.RSSI();
-} // End of readTelemetry() function.
+}// End of readTelemetry() function.
 
 
 /**
@@ -179,7 +182,7 @@ void printTelemetry()
 	int mqttStateCode = mqttClient.state();
 	lookupMQTTCode( mqttStateCode, buffer );
 	Serial.printf( "MQTT state: %s\n", buffer );
-} // End of printTelemetry() function.
+}// End of printTelemetry() function.
 
 
 /**
@@ -198,16 +201,28 @@ void mqttCallback( char *topic, byte *payload, unsigned int length )
 	Serial.println( message );
 	String str_msg = String( message );
 	if( str_msg.equals( "ON" ) )
+	{
 		digitalWrite( LED, HIGH );
+		ESC.write( 45 );
+	}
 	else if( str_msg.equals( "on" ) )
+	{
 		digitalWrite( LED, HIGH );
+		ESC.write( 45 );
+	}
 	else if( str_msg.equals( "OFF" ) )
+	{
 		digitalWrite( LED, LOW );
+		ESC.write( 0 );
+	}
 	else if( str_msg.equals( "off" ) )
+	{
 		digitalWrite( LED, LOW );
+		ESC.write( 0 );
+	}
 	else
 		Serial.printf( "Unknown command '%s'\n", message );
-} // End of mqttCallback() function.
+}// End of mqttCallback() function.
 
 
 /**
@@ -240,7 +255,7 @@ void mqttConnect()
 		mqttClient.subscribe( "led1" );
 		digitalWrite( LED, HIGH );
 	}
-} // End of mqttConnect() function.
+}// End of mqttConnect() function.
 
 
 /**
@@ -260,10 +275,27 @@ void setup()
 	// Turn the LED on.
 	digitalWrite( MCU_LED, HIGH );
 
+	ESC.attach( SERVO_GPIO, 1000, 2000 );// (pin, min pulse width, max pulse width in microseconds)
+
 	// Set the MAC address variable to its value.
 	snprintf( macAddress, 18, "%s", WiFi.macAddress().c_str() );
+
+	Serial.println( "Initializing the ESC..." );
+	initializeESC();
+
 	Serial.println( "Function setup() has completed." );
-} // End of setup() function.
+}// End of setup() function.
+
+
+void initializeESC()
+{
+	for( int i = 0; i < 180; ++i )
+		ESC.write( i );
+	delay( 3000 );
+	for( int i = 180; i > 0; --i )
+		ESC.write( i );
+	delay( 3000 );
+}// End of initializeESC() function.
 
 
 /**
@@ -288,4 +320,4 @@ void loop()
 
 		Serial.printf( "Next print in %u seconds.\n\n", printInterval / 1000 );
 	}
-} // End of loop() function.
+}// End of loop() function.
